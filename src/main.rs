@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -7,61 +7,76 @@ fn main() {
     let read = BufReader::new(file);
     let mut lines = read.lines();
 
-    let first_set = set_from_moves(lines.next().unwrap().unwrap());
-    let second_set = set_from_moves(lines.next().unwrap().unwrap());
+    let (first_set, first_map) = set_from_moves(lines.next().unwrap().unwrap());
+    let (second_set, second_map) = set_from_moves(lines.next().unwrap().unwrap());
 
     let mut smallest = i32::max_value();
     let intersection = first_set.intersection(&second_set);
 
     for point in intersection {
-        if point.distance() < smallest {
-            smallest = point.distance();
+        let distance = first_map.get(&point).unwrap() + second_map.get(&point).unwrap();
+        if distance < smallest {
+            smallest = distance;
         }
     }
 
     println!("Smallest Distance: {}", smallest);
 }
 
-fn set_from_moves(input: String) -> BTreeSet<Point> {
+fn set_from_moves(input: String) -> (BTreeSet<Point>, BTreeMap<Point, i32>) {
     let mut x = 0;
     let mut y = 0;
+    let mut steps = 0;
 
     let mut set: BTreeSet<Point> = BTreeSet::new();
+    let mut map: BTreeMap<Point, i32> = BTreeMap::new();
     let moves = input.split(',').map(Shift::from);
 
     for shift in moves {
         match shift {
             Shift::Up(distance) => {
                 for _ in 0..distance {
+                    steps += 1;
                     y += 1;
-                    set.insert(Point::new(x, y));
+                    let point = Point::new(x, y);
+                    set.insert(point.clone());
+                    map.entry(point).or_insert(steps);
                 }
             },
             Shift::Down(distance) => {
                 for _ in 0..distance {
+                    steps += 1;
                     y -= 1;
-                    set.insert(Point::new(x, y));
+                    let point = Point::new(x, y);
+                    set.insert(point.clone());
+                    map.entry(point).or_insert(steps);
                 }
             },
             Shift::Left(distance) => {
                 for _ in 0..distance {
+                    steps += 1;
                     x -= 1;
-                    set.insert(Point::new(x, y));
+                    let point = Point::new(x, y);
+                    set.insert(point.clone());
+                    map.entry(point).or_insert(steps);
                 }
             },
             Shift::Right(distance) => {
                 for _ in 0..distance {
+                    steps += 1;
                     x += 1;
-                    set.insert(Point::new(x, y));
+                    let point = Point::new(x, y);
+                    set.insert(point.clone());
+                    map.entry(point).or_insert(steps);
                 }
             },
         }
     }
 
-    set
+    (set, map)
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -70,10 +85,6 @@ struct Point {
 impl Point {
     pub fn new(x: i32, y: i32) -> Self {
         Point { x, y }
-    }
-
-    fn distance(&self) -> i32 {
-        self.x.abs() + self.y.abs()
     }
 }
 
