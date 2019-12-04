@@ -14,6 +14,7 @@ fn is_valid(input: u32) -> bool {
     let digits = input_str.chars();
     let mut has_double = false;
     let mut prev_char: Option<char> = None;
+    let mut repeat_count = 1;
 
     for chr in digits {
         if let Some(prev) = prev_char {
@@ -21,12 +22,17 @@ fn is_valid(input: u32) -> bool {
                 return false;
             }
             if chr == prev {
-                has_double = true;
+                repeat_count += 1;
+            } else {
+                if repeat_count == 2 {
+                    has_double = true;
+                }
+                repeat_count = 1;
             }
         }
 
         prev_char = Some(chr);
     }
 
-    has_double
+    has_double || repeat_count == 2
 }
