@@ -8,7 +8,7 @@ fn main() {
     let data = reader.lines().map(Result::unwrap);
     let map = Map::new(data);
 
-    println!("Orbits: {}", map.total_orbits());
+    println!("Minimum Transfers: {}", map.orbital_transfers("YOU", "SAN"));
 }
 
 struct Map {
@@ -57,22 +57,33 @@ impl Map {
         map
     }
 
-    fn total_orbits(&self) -> u32 {
-        let total_orbit_helper = |leaf_id| {
-            let mut cur = self.data.get(leaf_id).unwrap();
-            let mut orbit_count = 0;
+    fn orbital_transfers(&self, from: &str, to: &str) -> usize {
+        let from_path = self.path(from);
+        let to_path = self.path(to);
 
-            while let Some(ref parent_id) = cur.parent {
-                orbit_count += 1;
-                cur = self.data.get(parent_id).unwrap();
+        let mut from_iter = from_path.iter();
+        let mut to_iter = to_path.iter();
+
+        loop {
+            match (from_iter.next(), to_iter.next()) {
+                (Some(a), Some(b)) if a == b => {}
+                _ => break,
             }
+        }
 
-            orbit_count
-        };
+        from_iter.count() + to_iter.count()
+    }
 
-        self.data
-            .keys()
-            .fold(0, |acc, id| acc + total_orbit_helper(id))
+    fn path(&self, to: &str) -> Vec<String> {
+        let mut cur = self.data.get(to).unwrap();
+        let mut full_path = vec![to.to_string()];
+
+        while let Some(ref parent_id) = cur.parent {
+            full_path.insert(0, parent_id.to_string());
+            cur = self.data.get(parent_id).unwrap();
+        }
+
+        full_path
     }
 }
 
