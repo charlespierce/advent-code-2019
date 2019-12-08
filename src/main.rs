@@ -3,38 +3,35 @@ use std::fs::read_to_string;
 fn main() {
     let image = Image::new(25, 6, read_to_string("input.txt").unwrap());
 
-    let mut min_zero_count = 151;
-    let mut target_one_count = 0;
-    let mut target_two_count = 0;
-    for layer in image.layers {
-        let mut zero_count = 0;
-        let mut one_count = 0;
-        let mut two_count = 0;
-        for val in layer {
-            match val {
-                0 => {
-                    zero_count += 1;
+    let final_image = image.layers.iter().fold(None, |acc, layer| match acc {
+        None => Some(layer.clone()),
+        Some(image) => {
+            let mut new_image = Vec::new();
+            for (index, pixel) in image.iter().enumerate() {
+                if *pixel == 2 {
+                    new_image.push(layer[index]);
+                } else {
+                    new_image.push(*pixel);
                 }
-                1 => {
-                    one_count += 1;
-                }
-                2 => {
-                    two_count += 1;
-                }
-                _ => {}
             }
-        }
 
-        if zero_count < min_zero_count {
-            min_zero_count = zero_count;
-            target_one_count = one_count;
-            target_two_count = two_count;
+            Some(new_image)
+        }
+    });
+
+    let mut col_count = 0;
+    for pixel in final_image.unwrap() {
+        if pixel == 0 {
+            print!(" ");
+        } else {
+            print!("\u{2588}");
+        }
+        col_count += 1;
+        if col_count == 25 {
+            println!();
+            col_count = 0;
         }
     }
-
-    println!("Count of Ones: {}", target_one_count);
-    println!("Count of Twos: {}", target_two_count);
-    println!("Product: {}", target_one_count * target_two_count);
 }
 
 struct Image {
