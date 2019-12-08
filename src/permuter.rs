@@ -6,7 +6,7 @@ pub struct Permuter {
 impl Permuter {
     pub fn new() -> Self {
         Permuter {
-            data: [0, 1, 2, 3, 4],
+            data: [5, 6, 7, 8, 9],
             first: true,
         }
     }
