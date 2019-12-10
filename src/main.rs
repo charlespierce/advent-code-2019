@@ -1,4 +1,5 @@
-use std::cmp;
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -7,40 +8,44 @@ fn main() {
     let reader = BufReader::new(file);
     let lines = reader.lines().map(|l| l.unwrap());
     let field = parse_asteroids(lines);
-
-    let max = maximum_visible(field);
-
-    println!("Maximum Visible: {}", max);
+    let points = point_map(&Point::new(23, 20), &field);
+    let point = points.values().nth(199).unwrap();
+    println!("200th Point: {}", point.x * 100 + point.y);
 }
 
-fn maximum_visible(asteroids: Vec<Point>) -> i32 {
-    let mut max_visible = 0;
-    let mut point = None;
+fn point_map<'a>(reference: &Point, asteroids: &'a [Point]) -> BTreeMap<String, Point> {
+    let mut map = BTreeMap::new();
+    for point in asteroids {
+        if point != reference {
+            let angle = angle_between(reference, point).to_string();
 
-    for p1 in asteroids.iter() {
-        let mut count = 0;
-        for p2 in asteroids.iter() {
-            if p1 != p2 && can_see(p1, p2, &asteroids) {
-                count += 1;
+            match map.entry(angle) {
+                Entry::Vacant(vacant) => {
+                    vacant.insert(point.clone());
+                }
+                Entry::Occupied(mut occupied) => {
+                    let existing = occupied.get();
+                    if radius(reference, point) < radius(reference, existing) {
+                        occupied.insert(point.clone());
+                    }
+                }
             }
         }
-        if count > max_visible {
-            max_visible = count;
-            point = Some(p1);
-        }
     }
-
-    println!("{:?}", point.unwrap());
-    max_visible
+    map
 }
 
-fn can_see(p1: &Point, p2: &Point, asteroids: &[Point]) -> bool {
-    for p3 in asteroids.iter() {
-        if p1 != p3 && p2 != p3 && three_between(p1, p2, p3) {
-            return false;
-        }
+fn angle_between(p1: &Point, p2: &Point) -> f64 {
+    let angle = f64::atan2((p2.x - p1.x) as f64, (p1.y - p2.y) as f64);
+    if angle < 0.0 {
+        angle + (2.0 * std::f64::consts::PI)
+    } else {
+        angle
     }
-    true
+}
+
+fn radius(p1: &Point, p2: &Point) -> f64 {
+    f64::sqrt(f64::powi((p2.x - p1.x) as f64, 2) + f64::powi((p2.y - p1.y) as f64, 2))
 }
 
 fn parse_asteroids<I: Iterator<Item = String>>(data: I) -> Vec<Point> {
@@ -56,7 +61,7 @@ fn parse_asteroids<I: Iterator<Item = String>>(data: I) -> Vec<Point> {
     asteroids
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Point {
     x: i32,
     y: i32,
@@ -66,25 +71,4 @@ impl Point {
     fn new(x: i32, y: i32) -> Self {
         Point { x, y }
     }
-}
-
-fn three_between(p1: &Point, p2: &Point, p3: &Point) -> bool {
-    if are_collinear(p1, p2, p3) {
-        let min_x = cmp::min(p1.x, p2.x);
-        let max_x = cmp::max(p1.x, p2.x);
-        let min_y = cmp::min(p1.y, p2.y);
-        let max_y = cmp::max(p1.y, p2.y);
-
-        if min_x <= p3.x && p3.x <= max_x && min_y <= p3.y && p3.y <= max_y {
-            return true;
-        }
-    }
-    false
-}
-
-fn are_collinear(p1: &Point, p2: &Point, p3: &Point) -> bool {
-    let first = (p1.x - p2.x) * (p2.y - p3.y);
-    let second = (p2.x - p3.x) * (p1.y - p2.y);
-
-    first - second == 0
 }
