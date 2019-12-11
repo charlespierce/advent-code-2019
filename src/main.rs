@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
 mod computer;
 
@@ -10,7 +12,7 @@ fn main() {
 
     computer.run(&mut robot);
 
-    println!("Panels Painted: {}", robot.grid.colors.keys().len());
+    robot.grid.write_to_file("output.txt");
 }
 
 type Point = (i32, i32);
@@ -64,6 +66,27 @@ impl Grid {
     fn paint(&mut self, point: Point, color: Color) {
         self.colors.insert(point, color);
     }
+
+    fn write_to_file(&self, file_name: &str) {
+        let min_x = self.colors.keys().map(|(x, _)| *x).min().unwrap();
+        let max_x = self.colors.keys().map(|(x, _)| *x).max().unwrap();
+        let min_y = self.colors.keys().map(|(_, y)| *y).min().unwrap();
+        let max_y = self.colors.keys().map(|(_, y)| *y).max().unwrap();
+
+        let file = File::create(file_name).unwrap();
+        let mut writer = BufWriter::new(file);
+
+        for y in (min_y..=max_y).rev() {
+            for x in min_x..=max_x {
+                let chr = match self.get_color((x, y)) {
+                    Color::Black => " ",
+                    Color::White => "\u{2588}",
+                };
+                write!(writer, "{}", chr).unwrap();
+            }
+            writeln!(writer).unwrap();
+        }
+    }
 }
 
 struct Robot {
@@ -75,8 +98,11 @@ struct Robot {
 
 impl Robot {
     fn new() -> Self {
+        let mut grid = Grid::new();
+        grid.paint((0, 0), Color::White);
+
         Robot {
-            grid: Grid::new(),
+            grid,
             pointing_dir: Direction::Up,
             position: (0, 0),
             next: NextOutput::Paint,
