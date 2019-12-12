@@ -1,15 +1,64 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fs::read_to_string;
 use std::str::FromStr;
 
 fn main() {
+    let x_period = calculate_period_axis(|v| v.0);
+    println!("X Period: {}", x_period);
+    let y_period = calculate_period_axis(|v| v.1);
+    println!("Y Period: {}", y_period);
+    let z_period = calculate_period_axis(|v| v.2);
+    println!("Z Period: {}", z_period);
+
+    let mut x = x_period;
+    let mut y = y_period;
+    let mut z = z_period;
+    let mut divisor = 2;
+    let mut lcm = 1;
+
+    loop {
+        if x == 1 && y == 1 && z == 1 {
+            println!("Total Period: {}", lcm);
+            break;
+        }
+
+        if x % divisor != 0 && y % divisor != 0 && z % divisor != 0 {
+            divisor += 1;
+            continue;
+        }
+
+        if x % divisor == 0 {
+            x /= divisor;
+        }
+
+        if y % divisor == 0 {
+            y /= divisor;
+        }
+
+        if z % divisor == 0 {
+            z /= divisor;
+        }
+
+        lcm *= divisor;
+    }
+}
+
+fn calculate_period_axis(selector: impl Fn(&Vector) -> i64) -> i64 {
     let mut system: System = read_to_string("input.txt").unwrap().parse().unwrap();
 
-    for _ in 0..1000 {
+    let mut seen = HashSet::new();
+    let mut i = 0;
+    loop {
+        let state = system.stringify(&selector);
+        if seen.contains(&state) {
+            break i;
+        }
+        seen.insert(state);
+
+        i += 1;
         system.step();
     }
-
-    println!("Total Energy: {}", system.total_energy());
 }
 
 struct System {
@@ -32,8 +81,12 @@ impl System {
         }
     }
 
-    fn total_energy(&self) -> i64 {
-        self.moons.iter().map(Moon::energy).sum()
+    fn stringify(&self, selector: &impl Fn(&Vector) -> i64) -> String {
+        self.moons
+            .iter()
+            .map(|m| m.stringify(selector))
+            .collect::<Vec<String>>()
+            .join(",")
     }
 }
 
@@ -68,9 +121,12 @@ impl Moon {
         self.velocity.2 += gravity(self.position.2, other.position.2);
     }
 
-    fn energy(&self) -> i64 {
-        (self.position.0.abs() + self.position.1.abs() + self.position.2.abs())
-            * (self.velocity.0.abs() + self.velocity.1.abs() + self.velocity.2.abs())
+    fn stringify(&self, selector: &impl Fn(&Vector) -> i64) -> String {
+        format!(
+            "({}, {})",
+            selector(&self.position),
+            selector(&self.velocity)
+        )
     }
 }
 
