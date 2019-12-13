@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 mod computer;
 
@@ -10,16 +10,7 @@ fn main() {
 
     computer.run(&mut io);
 
-    let blocks: i64 = io
-        .tiles
-        .values()
-        .map(|t| match t {
-            TileType::Block => 1,
-            _ => 0,
-        })
-        .sum();
-
-    println!("Total Blocks: {}", blocks);
+    println!("Final Score: {}", io.score);
 }
 
 type Point = (i64, i64);
@@ -55,7 +46,8 @@ struct Output {
     next: NextOutput,
     x: i64,
     y: i64,
-    tiles: HashMap<Point, TileType>,
+    tiles: BTreeMap<Point, TileType>,
+    score: i64,
 }
 
 impl Output {
@@ -64,14 +56,27 @@ impl Output {
             next: NextOutput::X,
             x: 0,
             y: 0,
-            tiles: HashMap::new(),
+            tiles: BTreeMap::new(),
+            score: 0,
         }
     }
 }
 
 impl IO for Output {
     fn next_input(&mut self) -> i64 {
-        unimplemented!();
+        let (ball_x, paddle_x) = self.tiles.iter().fold((0, 0), |acc, ((_, x), t)| match t {
+            TileType::Ball => (*x, acc.1),
+            TileType::Paddle => (acc.0, *x),
+            _ => acc,
+        });
+
+        if ball_x < paddle_x {
+            -1
+        } else if ball_x > paddle_x {
+            1
+        } else {
+            0
+        }
     }
 
     fn next_output(&mut self, value: i64) {
@@ -85,8 +90,13 @@ impl IO for Output {
                 NextOutput::TileId
             }
             NextOutput::TileId => {
-                let point = (self.x, self.y);
-                self.tiles.insert(point, value.into());
+                let point = (self.y, self.x);
+
+                if point == (0, -1) {
+                    self.score = value;
+                } else {
+                    self.tiles.insert(point, value.into());
+                }
                 NextOutput::X
             }
         }
