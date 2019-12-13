@@ -1,161 +1,93 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufWriter, Write};
 
 mod computer;
 
 use computer::{Computer, IO};
 
 fn main() {
-    let mut robot = Robot::new();
     let computer = Computer::new();
+    let mut io = Output::new();
 
-    computer.run(&mut robot);
+    computer.run(&mut io);
 
-    robot.grid.write_to_file("output.txt");
+    let blocks: i64 = io
+        .tiles
+        .values()
+        .map(|t| match t {
+            TileType::Block => 1,
+            _ => 0,
+        })
+        .sum();
+
+    println!("Total Blocks: {}", blocks);
 }
 
-type Point = (i32, i32);
-
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
+type Point = (i64, i64);
 
 enum NextOutput {
-    Paint,
-    Turn,
+    X,
+    Y,
+    TileId,
 }
 
-#[derive(Copy, Clone)]
-enum Color {
-    Black = 0,
-    White = 1,
+enum TileType {
+    Empty,
+    Wall,
+    Block,
+    Paddle,
+    Ball,
 }
 
-impl From<i64> for Color {
-    fn from(value: i64) -> Self {
-        match value {
-            0 => Color::Black,
-            1 => Color::White,
-            _ => panic!("Unexpected color: {}", value),
+impl From<i64> for TileType {
+    fn from(val: i64) -> TileType {
+        match val {
+            0 => TileType::Empty,
+            1 => TileType::Wall,
+            2 => TileType::Block,
+            3 => TileType::Paddle,
+            4 => TileType::Ball,
+            _ => panic!("Unknown tile type: {}", val),
         }
     }
 }
 
-struct Grid {
-    colors: HashMap<Point, Color>,
-}
-
-impl Grid {
-    fn new() -> Self {
-        Grid {
-            colors: HashMap::new(),
-        }
-    }
-
-    fn get_color(&self, point: Point) -> Color {
-        match self.colors.get(&point) {
-            Some(color) => *color,
-            None => Color::Black,
-        }
-    }
-
-    fn paint(&mut self, point: Point, color: Color) {
-        self.colors.insert(point, color);
-    }
-
-    fn write_to_file(&self, file_name: &str) {
-        let min_x = self.colors.keys().map(|(x, _)| *x).min().unwrap();
-        let max_x = self.colors.keys().map(|(x, _)| *x).max().unwrap();
-        let min_y = self.colors.keys().map(|(_, y)| *y).min().unwrap();
-        let max_y = self.colors.keys().map(|(_, y)| *y).max().unwrap();
-
-        let file = File::create(file_name).unwrap();
-        let mut writer = BufWriter::new(file);
-
-        for y in (min_y..=max_y).rev() {
-            for x in min_x..=max_x {
-                let chr = match self.get_color((x, y)) {
-                    Color::Black => " ",
-                    Color::White => "\u{2588}",
-                };
-                write!(writer, "{}", chr).unwrap();
-            }
-            writeln!(writer).unwrap();
-        }
-    }
-}
-
-struct Robot {
-    grid: Grid,
-    pointing_dir: Direction,
-    position: Point,
+struct Output {
     next: NextOutput,
+    x: i64,
+    y: i64,
+    tiles: HashMap<Point, TileType>,
 }
 
-impl Robot {
+impl Output {
     fn new() -> Self {
-        let mut grid = Grid::new();
-        grid.paint((0, 0), Color::White);
-
-        Robot {
-            grid,
-            pointing_dir: Direction::Up,
-            position: (0, 0),
-            next: NextOutput::Paint,
-        }
-    }
-
-    fn move_step(&mut self) {
-        self.position = match self.pointing_dir {
-            Direction::Up => (self.position.0, self.position.1 + 1),
-            Direction::Down => (self.position.0, self.position.1 - 1),
-            Direction::Left => (self.position.0 - 1, self.position.1),
-            Direction::Right => (self.position.0 + 1, self.position.1),
-        };
-    }
-
-    fn turn_left(&mut self) {
-        self.pointing_dir = match self.pointing_dir {
-            Direction::Up => Direction::Left,
-            Direction::Down => Direction::Right,
-            Direction::Left => Direction::Down,
-            Direction::Right => Direction::Up,
-        }
-    }
-
-    fn turn_right(&mut self) {
-        self.pointing_dir = match self.pointing_dir {
-            Direction::Up => Direction::Right,
-            Direction::Down => Direction::Left,
-            Direction::Left => Direction::Up,
-            Direction::Right => Direction::Down,
+        Output {
+            next: NextOutput::X,
+            x: 0,
+            y: 0,
+            tiles: HashMap::new(),
         }
     }
 }
 
-impl IO for Robot {
+impl IO for Output {
     fn next_input(&mut self) -> i64 {
-        self.grid.get_color(self.position) as i64
+        unimplemented!();
     }
 
     fn next_output(&mut self, value: i64) {
-        match self.next {
-            NextOutput::Paint => {
-                self.grid.paint(self.position, value.into());
-                self.next = NextOutput::Turn;
+        self.next = match self.next {
+            NextOutput::X => {
+                self.x = value;
+                NextOutput::Y
             }
-            NextOutput::Turn => {
-                if value == 0 {
-                    self.turn_left();
-                } else {
-                    self.turn_right();
-                }
-                self.move_step();
-                self.next = NextOutput::Paint;
+            NextOutput::Y => {
+                self.y = value;
+                NextOutput::TileId
+            }
+            NextOutput::TileId => {
+                let point = (self.x, self.y);
+                self.tiles.insert(point, value.into());
+                NextOutput::X
             }
         }
     }
