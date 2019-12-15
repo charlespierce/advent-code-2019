@@ -125,7 +125,10 @@ impl IO for Searcher {
                     self.backtrack = true;
                     prev.reverse()
                 }
-                None => Direction::North,
+                None => {
+                    fill(&self.map);
+                    panic!("Done!");
+                }
             },
         };
 
@@ -153,35 +156,43 @@ impl IO for Searcher {
                 self.position = direction.move_point(self.position);
                 self.map.entry(self.position).or_insert('X');
                 self.moves.push(direction);
-                output(&self.map);
-                println!("Moves: {}", self.moves.len());
-                panic!("Found the Oxygen!");
             }
         }
     }
 }
 
-fn output(map: &BTreeMap<Point, char>) {
-    let (min_y, max_y, min_x, max_x) = map.keys().fold(
-        (std::i64::MAX, std::i64::MIN, std::i64::MAX, std::i64::MIN),
-        |acc, point| {
-            (
-                if point.0 < acc.0 { point.0 } else { acc.0 },
-                if point.0 > acc.1 { point.0 } else { acc.1 },
-                if point.1 < acc.2 { point.1 } else { acc.2 },
-                if point.1 > acc.3 { point.1 } else { acc.3 },
-            )
-        },
-    );
+fn fill(map: &BTreeMap<Point, char>) {
+    let mut map = map.clone();
+    let points = map.values().filter(|c| **c == '.' || **c == '*').count();
+    let mut time = 0;
 
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            match map.get(&(y, x)) {
-                Some(chr) => print!("{}", chr),
-                None => print!(" "),
-            }
+    println!("Filling {} Areas...", points);
+
+    loop {
+        time += 1;
+        let filled = map
+            .iter()
+            .filter(|(_, c)| **c == 'X')
+            .map(|(&point, _)| point)
+            .collect::<Vec<_>>();
+        if filled.len() == points {
+            println!("Total Time: {}", time);
+            break;
         }
-        println!();
+
+        for point in filled {
+            expand(&mut map, Direction::North.move_point(point));
+            expand(&mut map, Direction::South.move_point(point));
+            expand(&mut map, Direction::East.move_point(point));
+            expand(&mut map, Direction::West.move_point(point));
+        }
     }
-    println!("--- MAP ---");
+}
+
+fn expand(map: &mut BTreeMap<Point, char>, point: Point) {
+    if let Some(c) = map.get(&point) {
+        if *c == '.' || *c == '*' {
+            map.insert(point, 'X');
+        }
+    }
 }
