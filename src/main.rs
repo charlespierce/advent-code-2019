@@ -10,11 +10,17 @@ fn main() {
             (eq.output.name.clone(), eq)
         })
         .collect();
+
+    println!("Ore Needed: {}", calculate_ore(&equations, 3_281_820));
+    println!("Ore Needed: {}", calculate_ore(&equations, 3_281_821));
+}
+
+fn calculate_ore(equations: &HashMap<String, Equation>, fuel_quantity: i64) -> i64 {
     let mut excess: HashMap<String, i64> = HashMap::new();
     let mut ore_count = 0;
     let mut queue = VecDeque::new();
     queue.push_back(Reactant {
-        quantity: 1,
+        quantity: fuel_quantity,
         name: "FUEL".into(),
     });
 
@@ -46,7 +52,7 @@ fn main() {
         }
     }
 
-    println!("Total Ore: {}", ore_count);
+    ore_count
 }
 
 struct Reactant {
