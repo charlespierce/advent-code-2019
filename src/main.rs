@@ -1,15 +1,15 @@
 use std::fs::read_to_string;
 
-mod repeater;
-
-use repeater::Repeater;
-
 fn main() {
-    let mut digits = read_to_string("input.txt")
-        .unwrap()
-        .chars()
-        .map(|c| c.to_digit(10).unwrap() as i64)
-        .collect();
+    let mut digits = repeat(
+        read_to_string("input.txt")
+            .unwrap()
+            .chars()
+            .map(|c| c.to_digit(10).unwrap())
+            .collect(),
+        5_975_483,
+        6_500_000,
+    );
 
     for _ in 0..100 {
         digits = phase(digits);
@@ -26,16 +26,25 @@ fn main() {
     println!();
 }
 
-fn phase(input: Vec<i64>) -> Vec<i64> {
-    (0..input.len())
-        .map(|i| {
-            input
-                .iter()
-                .zip(Repeater::new((i + 1) as i64))
-                .map(|(a, b)| a * b)
-                .sum::<i64>()
-                .abs()
-                % 10
-        })
-        .collect()
+fn repeat(input: Vec<u32>, from: usize, to: usize) -> Vec<u32> {
+    let mut output = Vec::new();
+
+    for i in from..to {
+        let index = i % input.len();
+        output.push(input[index as usize]);
+    }
+
+    output
+}
+
+fn phase(input: Vec<u32>) -> Vec<u32> {
+    let mut total: u32 = input.iter().sum();
+    let mut output = Vec::new();
+
+    for value in input.iter() {
+        output.push(total % 10);
+        total -= *value;
+    }
+
+    output
 }
