@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::convert::TryFrom;
+use std::str::Chars;
 
 mod computer;
 
@@ -11,81 +10,36 @@ fn main() {
 
     computer.run(&mut ascii);
 
-    print_view(&ascii.map);
-    println!("Calibration: {}", calculate_calibration(&ascii.map));
+    println!("Dust Collected: {}", ascii.dust);
 }
 
-fn print_view(map: &BTreeMap<Point, char>) {
-    let mut curr_y = 0;
-    for ((y, _), chr) in map.iter() {
-        if curr_y != *y {
-            println!();
-            curr_y = *y;
-        }
-        print!("{}", chr);
-    }
-    println!();
-}
-
-fn calculate_calibration(map: &BTreeMap<Point, char>) -> i64 {
-    let mut output = 0;
-
-    for (point, chr) in map.iter() {
-        if *chr == '#' {
-            if map.get(&(point.0, point.1 - 1)) != Some(&'#') {
-                continue;
-            }
-
-            if map.get(&(point.0, point.1 + 1)) != Some(&'#') {
-                continue;
-            }
-
-            if map.get(&(point.0 - 1, point.1)) != Some(&'#') {
-                continue;
-            }
-
-            if map.get(&(point.0 + 1, point.1)) != Some(&'#') {
-                continue;
-            }
-
-            output += point.0 * point.1;
-        }
-    }
-
-    output
-}
-
-type Point = (i64, i64);
+const INPUT: &str = "A,B,A,B,C,C,B,A,B,C
+L,4,R,8,L,6,L,10
+L,6,R,8,R,10,L,6,L,6
+L,4,L,4,L,10
+n
+";
 
 struct Ascii {
-    map: BTreeMap<Point, char>,
-    position: Point,
+    chars: Chars<'static>,
+    dust: i64,
 }
 
 impl Ascii {
     fn new() -> Self {
         Ascii {
-            map: BTreeMap::new(),
-            position: (0, 0),
+            chars: INPUT.chars(),
+            dust: 0,
         }
     }
 }
 
 impl IO for Ascii {
     fn next_input(&mut self) -> i64 {
-        unimplemented!();
+        self.chars.next().unwrap() as i64
     }
 
     fn next_output(&mut self, value: i64) {
-        match value {
-            10 => {
-                self.position = (self.position.0 + 1, 0);
-            }
-            c => {
-                self.map
-                    .insert(self.position, char::try_from(c as u32).unwrap());
-                self.position.1 += 1;
-            }
-        }
+        self.dust = value;
     }
 }
