@@ -7,7 +7,7 @@ pub struct Map {
     pub data: HashMap<Point, char>,
     pub keys: HashMap<Point, char>,
     pub all_keys: Keys,
-    pub start: Point,
+    pub start: Vec<Point>,
 }
 
 impl Map {
@@ -31,7 +31,7 @@ impl From<String> for Map {
     fn from(value: String) -> Self {
         let mut data = HashMap::new();
         let mut keys = HashMap::new();
-        let mut start = None;
+        let mut start = Vec::new();
 
         for (y, line) in value.lines().enumerate() {
             for (x, chr) in line.chars().enumerate() {
@@ -39,7 +39,7 @@ impl From<String> for Map {
                 if 'a' <= chr && chr <= 'z' {
                     keys.insert((x as i64, y as i64), chr);
                 } else if chr == '@' {
-                    start = Some((x as i64, y as i64));
+                    start.push((x as i64, y as i64));
                 }
             }
         }
@@ -50,7 +50,7 @@ impl From<String> for Map {
             data,
             keys,
             all_keys,
-            start: start.unwrap(),
+            start,
         }
     }
 }
