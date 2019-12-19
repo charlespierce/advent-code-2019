@@ -1,45 +1,55 @@
-use std::str::Chars;
-
 mod computer;
 
 use computer::{Computer, IO};
 
 fn main() {
-    let computer = Computer::new();
-    let mut ascii = Ascii::new();
+    let mut affected = 0;
 
-    computer.run(&mut ascii);
+    for x in 0..50 {
+        for y in 0..50 {
+            let computer = Computer::new();
+            let mut drone = Drone::new(x, y);
+            computer.run(&mut drone);
 
-    println!("Dust Collected: {}", ascii.dust);
+            if drone.pulled {
+                affected += 1;
+            }
+        }
+    }
+
+    println!("Total Points Affected: {}", affected);
 }
 
-const INPUT: &str = "A,B,A,B,C,C,B,A,B,C
-L,4,R,8,L,6,L,10
-L,6,R,8,R,10,L,6,L,6
-L,4,L,4,L,10
-n
-";
-
-struct Ascii {
-    chars: Chars<'static>,
-    dust: i64,
+struct Drone {
+    position: (i64, i64),
+    pulled: bool,
+    x_sent: bool,
 }
 
-impl Ascii {
-    fn new() -> Self {
-        Ascii {
-            chars: INPUT.chars(),
-            dust: 0,
+impl Drone {
+    fn new(x: i64, y: i64) -> Self {
+        Drone {
+            position: (x, y),
+            pulled: false,
+            x_sent: false,
         }
     }
 }
 
-impl IO for Ascii {
+impl IO for Drone {
     fn next_input(&mut self) -> i64 {
-        self.chars.next().unwrap() as i64
+        if self.x_sent {
+            self.position.1
+        } else {
+            self.x_sent = true;
+            self.position.0
+        }
     }
 
     fn next_output(&mut self, value: i64) {
-        self.dust = value;
+        self.pulled = match value {
+            1 => true,
+            _ => false,
+        };
     }
 }
