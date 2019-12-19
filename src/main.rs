@@ -3,21 +3,27 @@ mod computer;
 use computer::{Computer, IO};
 
 fn main() {
-    let mut affected = 0;
-
-    for x in 0..50 {
-        for y in 0..50 {
-            let computer = Computer::new();
-            let mut drone = Drone::new(x, y);
-            computer.run(&mut drone);
-
-            if drone.pulled {
-                affected += 1;
-            }
+    for x in 900..1000 {
+        if is_point_in_beam(x, 844) {
+            println!("Lower Edge: {}, 50", x);
+            break;
         }
     }
 
-    println!("Total Points Affected: {}", affected);
+    for y in 700..800 {
+        if is_point_in_beam(1020, y) {
+            println!("Upper Edge: {}", y);
+            break;
+        }
+    }
+}
+
+fn is_point_in_beam(x: i64, y: i64) -> bool {
+    let computer = Computer::new();
+    let mut drone = Drone::new(x, y);
+    computer.run(&mut drone);
+
+    drone.pulled
 }
 
 struct Drone {
