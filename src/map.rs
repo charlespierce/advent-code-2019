@@ -1,56 +1,110 @@
-use super::keys::Keys;
-use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 
-pub type Point = (i64, i64);
+use crate::point::Point;
 
+#[derive(Debug)]
 pub struct Map {
-    pub data: HashMap<Point, char>,
-    pub keys: HashMap<Point, char>,
-    pub all_keys: Keys,
-    pub start: Vec<Point>,
+    pub tunnels: HashSet<Point>,
+    pub portals: HashMap<Point, Point>,
+    pub start: Point,
+    pub end: Point,
 }
 
 impl Map {
-    pub fn can_access(&self, pos: Point, keys: Keys) -> bool {
-        match self.data.get(&pos) {
-            Some('.') | Some('@') => true,
-            Some(key) if 'a' <= *key && *key <= 'z' => true,
-            Some(door)
-                if 'A' <= *door
-                    && *door <= 'Z'
-                    && keys.contains_key(door.to_lowercase().next().unwrap()) =>
-            {
-                true
+    pub fn get_neighbors(&self, from: Point) -> Vec<Point> {
+        let mut output = Vec::new();
+
+        for point in &[
+            from.move_north(1),
+            from.move_east(1),
+            from.move_west(1),
+            from.move_south(1),
+        ] {
+            if self.tunnels.contains(point) {
+                output.push(*point);
             }
-            _ => false,
         }
+
+        if let Some(other) = self.portals.get(&from) {
+            output.push(*other);
+        }
+
+        output
     }
 }
 
 impl From<String> for Map {
     fn from(value: String) -> Self {
-        let mut data = HashMap::new();
-        let mut keys = HashMap::new();
-        let mut start = Vec::new();
+        let map: HashMap<Point, char> = value
+            .lines()
+            .enumerate()
+            .flat_map(|(y, line)| {
+                line.chars()
+                    .enumerate()
+                    .map(move |(x, chr)| (Point::new(x as i64, y as i64), chr))
+            })
+            .collect();
 
-        for (y, line) in value.lines().enumerate() {
-            for (x, chr) in line.chars().enumerate() {
-                data.insert((x as i64, y as i64), chr);
-                if 'a' <= chr && chr <= 'z' {
-                    keys.insert((x as i64, y as i64), chr);
-                } else if chr == '@' {
-                    start.push((x as i64, y as i64));
+        let mut tunnels = HashSet::new();
+        let mut portals = HashMap::new();
+        let mut portal_temp: HashMap<String, Point> = HashMap::new();
+
+        for (point, chr) in map.iter() {
+            match chr {
+                '.' => {
+                    tunnels.insert(*point);
                 }
+                label if 'A' <= *label && *label <= 'Z' => {
+                    if let Some((label, portal)) = find_label_tunnel(point, &map) {
+                        match portal_temp.entry(label) {
+                            Entry::Vacant(e) => {
+                                e.insert(portal);
+                            }
+                            Entry::Occupied(e) => {
+                                let other = e.remove();
+                                portals.insert(portal, other);
+                                portals.insert(other, portal);
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
-        let all_keys = keys.values().cloned().into();
-
         Map {
-            data,
-            keys,
-            all_keys,
-            start,
+            tunnels,
+            portals,
+            start: portal_temp.remove("AA").unwrap(),
+            end: portal_temp.remove("ZZ").unwrap(),
         }
     }
+}
+
+fn find_label_tunnel(label_start: &Point, map: &HashMap<Point, char>) -> Option<(String, Point)> {
+    let mut label = String::new();
+    label.push(*map.get(&label_start).unwrap());
+
+    for trial in &[label_start.move_west(1), label_start.move_east(2)] {
+        if let Some('.') = map.get(trial) {
+            let other = *map.get(&label_start.move_east(1)).unwrap();
+            if 'A' <= other && other <= 'Z' {
+                label.push(other);
+                return Some((label, *trial));
+            }
+        }
+    }
+
+    for trial in &[label_start.move_north(1), label_start.move_south(2)] {
+        if let Some('.') = map.get(trial) {
+            let other = *map.get(&label_start.move_south(1)).unwrap();
+            if 'A' <= other && other <= 'Z' {
+                label.push(other);
+                return Some((label, *trial));
+            }
+        }
+    }
+
+    None
 }
