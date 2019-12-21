@@ -17,10 +17,12 @@ NOT B T
 OR T J
 NOT C T
 OR J T
-NOT D J
+AND D T
+NOT E J
 NOT J J
+OR H J
 AND T J
-WALK
+RUN
 ";
 
 struct Ascii {
