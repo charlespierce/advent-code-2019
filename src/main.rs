@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
+
+use crossbeam::channel::{unbounded, Receiver, Sender};
 
 mod computer;
 
@@ -16,6 +17,7 @@ fn main() {
     network.watch_messages();
 }
 
+#[derive(Copy, Clone)]
 struct Packet {
     x: i64,
     y: i64,
@@ -23,19 +25,21 @@ struct Packet {
 
 struct Network {
     elements: Vec<NetworkElement>,
+    packet_memory: Option<Packet>,
 }
 
 impl Network {
     fn new() -> Self {
         Network {
             elements: Vec::new(),
+            packet_memory: None,
         }
     }
 
     fn add_element(&mut self) {
         let index = self.elements.len() as i64;
-        let (message_sender, message_receiver) = channel();
-        let (packet_sender, packet_receiver) = channel();
+        let (message_sender, message_receiver) = unbounded();
+        let (packet_sender, packet_receiver) = unbounded();
         self.elements.push(NetworkElement {
             sender: packet_sender,
             receiver: message_receiver,
@@ -50,13 +54,13 @@ impl Network {
     }
 
     fn watch_messages(&mut self) {
+        let mut no_messages = false;
         loop {
             for element in self.elements.iter() {
                 if let Ok(message) = element.receiver.try_recv() {
                     match message.destination {
                         255 => {
-                            println!("Message to 255: {}", message.packet.y);
-                            panic!("Done!");
+                            self.packet_memory = Some(message.packet);
                         }
                         a if 0 <= a && a < 50 => {
                             self.elements[a as usize]
@@ -66,6 +70,22 @@ impl Network {
                         }
                         _ => {}
                     }
+                }
+            }
+
+            if self
+                .elements
+                .iter()
+                .all(|e| e.sender.is_empty() && e.receiver.is_empty())
+            {
+                if no_messages {
+                    if let Some(packet) = self.packet_memory {
+                        self.elements[0].sender.send(packet).unwrap();
+                        println!("Sent y value: {}", packet.y);
+                    }
+                    no_messages = false;
+                } else {
+                    no_messages = true;
                 }
             }
         }
