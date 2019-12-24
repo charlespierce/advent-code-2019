@@ -1,62 +1,146 @@
-use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::fs::read_to_string;
 
 fn main() {
     let mut board = Board::from(read_to_string("input.txt").unwrap());
 
-    while !board.step() {}
+    for _ in 0..200 {
+        board.step();
+    }
 
-    board.print();
-
-    println!("Biodiversity Rating: {}", board.map);
+    println!("Total Bugs: {}", board.bug_count());
 }
 
+const OUTER_MASK: u32 = 33_080_895;
+const INNER_MASK: u32 = 70_720;
+
 struct Board {
-    map: u32,
-    history: HashSet<u32>,
+    maps: VecDeque<u32>,
 }
 
 impl Board {
-    fn has_bug(&self, x: u32, y: u32) -> bool {
-        self.map & index(x, y) > 0
-    }
+    fn step(&mut self) {
+        if *self.maps.front().unwrap() & OUTER_MASK > 0 {
+            self.maps.push_front(0);
+        }
 
-    fn step(&mut self) -> bool {
-        let mut new_map = 0;
+        if *self.maps.back().unwrap() & INNER_MASK > 0 {
+            self.maps.push_back(0);
+        }
 
-        for y in 0..5 {
-            for x in 0..5 {
-                let bug_count = neighbors(x, y)
-                    .into_iter()
-                    .filter(|(nx, ny)| self.has_bug(*nx, *ny))
-                    .count();
-                if self.has_bug(x, y) {
-                    if bug_count == 1 {
-                        new_map |= index(x, y);
+        let new_maps = self
+            .maps
+            .iter()
+            .enumerate()
+            .map(|(i, map)| {
+                let mut new_map = 0;
+                for y in 0..5 {
+                    for x in 0..5 {
+                        if x == 2 && y == 2 {
+                            continue;
+                        }
+
+                        let count = self.neighbor_bug_count(x, y, i);
+                        let mask = index(x, y);
+                        if map & mask > 0 {
+                            if count == 1 {
+                                new_map |= mask;
+                            }
+                        } else if 1 <= count && count <= 2 {
+                            new_map |= mask;
+                        }
                     }
-                } else if 1 <= bug_count && bug_count <= 2 {
-                    new_map |= index(x, y);
                 }
-            }
-        }
+                new_map
+            })
+            .collect();
 
-        self.history.insert(self.map);
-        self.map = new_map;
-
-        self.history.contains(&new_map)
+        self.maps = new_maps;
     }
 
-    fn print(&self) {
-        for y in 0..5 {
-            for x in 0..5 {
-                if self.has_bug(x, y) {
-                    print!("#");
-                } else {
-                    print!(".");
+    fn neighbor_bug_count(&self, x: usize, y: usize, i: usize) -> u32 {
+        let mut count = 0;
+        if x == 0 {
+            if i > 0 && self.maps[i - 1] & index(1, 2) > 0 {
+                count += 1;
+            }
+        } else if self.maps[i] & index(x - 1, y) > 0 {
+            count += 1;
+        }
+
+        if x == 4 {
+            if i > 0 && self.maps[i - 1] & index(3, 2) > 0 {
+                count += 1;
+            }
+        } else if self.maps[i] & index(x + 1, y) > 0 {
+            count += 1;
+        }
+
+        if y == 0 {
+            if i > 0 && self.maps[i - 1] & index(2, 1) > 0 {
+                count += 1;
+            }
+        } else if self.maps[i] & index(x, y - 1) > 0 {
+            count += 1;
+        }
+
+        if y == 4 {
+            if i > 0 && self.maps[i - 1] & index(2, 3) > 0 {
+                count += 1;
+            }
+        } else if self.maps[i] & index(x, y + 1) > 0 {
+            count += 1;
+        }
+
+        if x == 2 && y == 1 && i < self.maps.len() - 1 {
+            for n in 0..5 {
+                if self.maps[i + 1] & index(n, 0) > 0 {
+                    count += 1;
                 }
             }
-            println!();
         }
+
+        if x == 2 && y == 3 && i < self.maps.len() - 1 {
+            for n in 0..5 {
+                if self.maps[i + 1] & index(n, 4) > 0 {
+                    count += 1;
+                }
+            }
+        }
+
+        if x == 1 && y == 2 && i < self.maps.len() - 1 {
+            for n in 0..5 {
+                if self.maps[i + 1] & index(0, n) > 0 {
+                    count += 1;
+                }
+            }
+        }
+
+        if x == 3 && y == 2 && i < self.maps.len() - 1 {
+            for n in 0..5 {
+                if self.maps[i + 1] & index(4, n) > 0 {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
+
+    fn bug_count(&self) -> u32 {
+        let mut count = 0;
+
+        for map in self.maps.iter() {
+            let mut work = *map;
+            while work > 0 {
+                if (work & 1) > 0 {
+                    count += 1;
+                }
+                work >>= 1;
+            }
+        }
+
+        count
     }
 }
 
@@ -66,45 +150,24 @@ impl From<String> for Board {
             .lines()
             .enumerate()
             .flat_map(|(y, line)| {
-                line.chars().enumerate().map(move |(x, chr)| {
-                    if chr == '#' {
-                        index(x as u32, y as u32)
-                    } else {
-                        0
-                    }
-                })
+                line.chars().enumerate().map(
+                    move |(x, chr)| {
+                        if chr == '#' {
+                            index(x, y)
+                        } else {
+                            0
+                        }
+                    },
+                )
             })
             .fold(0, |map, point| map | point);
 
         Board {
-            map,
-            history: HashSet::new(),
+            maps: VecDeque::from(vec![map]),
         }
     }
 }
 
-fn index(x: u32, y: u32) -> u32 {
+fn index(x: usize, y: usize) -> u32 {
     1 << (y * 5 + x)
-}
-
-fn neighbors(x: u32, y: u32) -> Vec<(u32, u32)> {
-    let mut output = Vec::new();
-
-    if x > 0 {
-        output.push((x - 1, y));
-    }
-
-    if x < 4 {
-        output.push((x + 1, y));
-    }
-
-    if y > 0 {
-        output.push((x, y - 1));
-    }
-
-    if y < 4 {
-        output.push((x, y + 1));
-    }
-
-    output
 }
